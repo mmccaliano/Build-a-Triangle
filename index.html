@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f5f1">
+  <title>Build a Triangle</title>
+  <style>
+    :root { color-scheme: light; --ink:#233c43; --muted:#5c6d71; --green:#20705b; --border:#dde5df; --paper:#fff; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#f4f5f1; color:var(--ink); font-family:ui-rounded,"Avenir Next",Avenir,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; -webkit-text-size-adjust:100%; }
+    button, select { font:inherit; }
+    button, select, summary { -webkit-tap-highlight-color:transparent; }
+    button:focus-visible, select:focus-visible, summary:focus-visible { outline:3px solid #315fc5; outline-offset:4px; }
+    .page { min-height:100svh; display:grid; place-items:center; padding:28px 20px; }
+    .widget { width:100%; max-width:1050px; background:var(--paper); border:1px solid var(--border); border-radius:24px; overflow:hidden; box-shadow:0 12px 45px #233c4308; }
+    .heading { padding:28px 32px 22px; }
+    .eyebrow { display:flex; align-items:center; gap:8px; color:var(--green); font-size:11px; font-weight:800; letter-spacing:1.8px; text-transform:uppercase; margin-bottom:11px; }
+    .eyebrow svg { width:21px; height:21px; }
+    .heading-row { display:flex; align-items:center; justify-content:space-between; gap:20px; }
+    h1 { margin:0; font-size:clamp(27px,4vw,36px); line-height:1.15; font-weight:800; letter-spacing:-1.2px; }
+    .intro { margin:8px 0 0; color:var(--muted); font-size:16px; line-height:1.5; }
+    .challenge-tag { flex:none; display:flex; align-items:center; gap:7px; font-size:12px; font-weight:700; color:var(--green); background:#edf5f0; padding:9px 12px; border-radius:100px; }
+    .challenge-tag span { width:6px; height:6px; background:var(--green); border-radius:50%; }
+    .toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 32px; background:#fafbf8; border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+    .sets { display:flex; align-items:center; gap:10px; }
+    .control-label { color:var(--muted); font-size:12px; font-weight:700; margin-right:3px; }
+    .length-options { display:flex; gap:10px; }
+    .length-control { display:flex; flex-direction:column; gap:5px; }
+    .side-name { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:700; color:var(--muted); }
+    .side-name::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--side-color); }
+    .length-control select, .reset { min-height:44px; border:1px solid #d6dfd8; background:white; color:var(--ink); border-radius:10px; padding:9px 14px; font-weight:700; cursor:pointer; }
+    .length-control select { width:84px; font-size:16px; font-variant-numeric:tabular-nums; }
+    .reset { font-size:14px; }
+    .length-control select:hover, .reset:hover { background:#edf3ee; }
+    .reset { display:flex; align-items:center; justify-content:center; gap:7px; white-space:nowrap; }
+    .reset svg { width:16px; height:16px; }
+    .directions { display:flex; flex-wrap:wrap; gap:8px 24px; padding:17px 32px 15px; font-size:13px; color:var(--muted); }
+    .direction { display:flex; align-items:center; gap:8px; }
+    .direction svg { width:18px; height:18px; flex:none; color:#41685a; }
+    .direction b { color:var(--ink); font-weight:700; }
+    .board-wrap { position:relative; margin:0 24px; border:1px solid #dde6df; border-radius:16px; background-color:#f8faf7; background-image:radial-gradient(#cbd8cd 0.85px,transparent 0.85px); background-size:22px 22px; }
+    .board-top { position:absolute; left:18px; right:18px; top:16px; display:flex; justify-content:space-between; align-items:center; gap:8px; pointer-events:none; z-index:1; }
+    .board-title { font-size:10px; font-weight:800; letter-spacing:1.5px; color:#5c6e61; }
+    .corner-count { font-size:11px; font-weight:700; color:#52665b; background:#f8faf7e8; border:1px solid #d9e3da; border-radius:100px; padding:5px 9px; }
+    #board { display:block; width:100%; height:clamp(360px,44vw,440px); touch-action:none; user-select:none; -webkit-user-select:none; outline:none; border-radius:15px; }
+    #board:focus-visible { outline:3px solid #315fc5; outline-offset:3px; }
+    #board .side-hit { cursor:grab; }
+    #board .end-hit { cursor:crosshair; }
+    #board.is-dragging, #board.is-dragging * { cursor:grabbing; }
+    #board text { font-family:inherit; pointer-events:none; }
+    #board .side-label { cursor:grab; }
+    #board .end-target:hover .end-halo { opacity:0.15; }
+    .board-hint { position:absolute; bottom:14px; left:20px; right:20px; color:#63776b; font-size:12px; text-align:center; line-height:1.45; pointer-events:none; }
+    .feedback { display:flex; align-items:center; gap:18px; margin:20px 24px 0; padding:18px 20px; background:#edf5f0; border:1px solid #d9e9dd; border-radius:14px; }
+    .feedback[data-state="impossible"] { background:#fff5ea; border-color:#f0dfc8; }
+    .feedback-icon { width:34px; height:34px; flex:none; display:grid; place-items:center; border:1px solid #c8dfd0; color:#226f53; border-radius:50%; background:#fff9; }
+    .feedback[data-state="impossible"] .feedback-icon { color:#996022; border-color:#e6ceab; }
+    .feedback-icon svg { width:19px; height:19px; }
+    .feedback-copy { flex:1; }
+    .feedback h2 { margin:0 0 5px; font-size:16px; line-height:1.3; font-weight:800; }
+    .feedback p { margin:0; font-size:13px; line-height:1.55; color:#50675a; max-width:580px; }
+    .feedback[data-state="impossible"] p { color:#7e613f; }
+    .comparison { flex:none; text-align:center; padding-left:14px; border-left:1px solid #cfe0d4; }
+    .feedback[data-state="impossible"] .comparison { border-color:#e5d3b9; }
+    .math { display:block; font-size:21px; font-weight:800; letter-spacing:0.3px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+    .math-caption { display:block; margin-top:4px; font-size:10px; color:#53685a; }
+    .bottom { display:flex; justify-content:space-between; align-items:flex-start; gap:15px; padding:16px 32px 22px; color:var(--muted); font-size:11px; line-height:1.6; }
+    .bottom p { margin:0; }
+    details { max-width:420px; }
+    summary { cursor:pointer; font-weight:700; min-height:30px; }
+    details p { padding-top:6px; font-size:12px; }
+    kbd { font:inherit; font-weight:700; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    @media (max-width:700px) {
+      .page { padding:16px 12px; }
+      .heading { padding:22px 22px 19px; }
+      .challenge-tag { display:none; }
+      .toolbar { padding:12px 20px; gap:12px; }
+      .sets { flex-wrap:wrap; gap:6px; }
+      .control-label { width:100%; font-size:10px; letter-spacing:0.6px; text-transform:uppercase; }
+      .length-options { gap:8px; }
+      .length-control select { width:68px; padding:9px 10px; }
+      .reset { align-self:flex-end; padding:9px 11px; font-size:12px; }
+      .directions { padding:15px 22px; gap:8px 16px; font-size:12px; }
+      .board-wrap { margin:0 14px; }
+      #board { height:390px; }
+      .feedback { margin:16px 14px 0; padding:16px; gap:12px; flex-wrap:wrap; }
+      .feedback-copy { flex-basis:calc(100% - 50px); }
+      .comparison { margin-left:46px; border:0; padding:0; text-align:left; }
+      .math { font-size:19px; }
+      .math-caption { display:none; }
+      .bottom { padding:15px 22px 20px; flex-wrap:wrap; gap:7px; }
+    }
+    @media (max-width:480px) {
+      .reset span { display:none; }
+      .reset { width:44px; }
+    }
+    @media (max-width:380px) {
+      .page { padding:10px 8px; }
+      .heading { padding:20px 18px 17px; }
+      .toolbar { padding:12px 16px; }
+      .length-options { gap:6px; }
+      .length-control select { width:62px; padding:9px 7px; }
+      .directions { padding:14px 18px; }
+      .board-top { left:12px; right:12px; }
+      .board-title { font-size:9px; letter-spacing:1px; }
+    }
+    @media (max-height:850px) and (min-width:701px) {
+      .page { padding:16px; }
+      .heading { padding-top:20px; padding-bottom:18px; }
+      .eyebrow { margin-bottom:7px; }
+      .feedback { margin-top:16px; padding:16px 20px; }
+      .bottom { padding-top:12px; padding-bottom:16px; }
+      #board { height:320px; }
+    }
+    @media (max-height:650px) and (min-width:701px) {
+      .page { padding:12px; }
+      #board { height:280px; }
+    }
+    @media (prefers-reduced-motion:reduce) { * { scroll-behavior:auto !important; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="widget" aria-labelledby="title">
+      <header class="heading">
+        <div class="eyebrow">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 19 12 4l8 15H4Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="4" r="2" fill="currentColor"/><circle cx="4" cy="19" r="2" fill="currentColor"/><circle cx="20" cy="19" r="2" fill="currentColor"/></svg>
+          Geometry lab
+        </div>
+        <div class="heading-row">
+          <div><h1 id="title">Build a Triangle</h1><p class="intro">Can you connect all three sides?</p></div>
+          <div class="challenge-tag"><span></span>Try it. Turn it. Connect it.</div>
+        </div>
+      </header>
+      <div class="toolbar">
+        <div class="sets">
+          <span class="control-label" id="lengths-label">Side lengths</span>
+          <div class="length-options" role="group" aria-labelledby="lengths-label">
+            <label class="length-control" style="--side-color:#315fc5"><span class="side-name">Side 1</span><select id="length-0" aria-label="Side 1 length, blue" aria-describedby="length-note"></select></label>
+            <label class="length-control" style="--side-color:#147768"><span class="side-name">Side 2</span><select id="length-1" aria-label="Side 2 length, green" aria-describedby="length-note"></select></label>
+            <label class="length-control" style="--side-color:#b34c28"><span class="side-name">Side 3</span><select id="length-2" aria-label="Side 3 length, orange" aria-describedby="length-note"></select></label>
+          </div>
+        </div>
+        <button class="reset" type="button" id="reset" aria-label="Reset sides to their starting positions">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 7a6 6 0 1 1-.3 5M4 3v4h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Reset sides</span>
+        </button>
+      </div>
+      <div class="directions" id="directions">
+        <div class="direction"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 10h14M3 10l3-3m-3 3 3 3m11-3-3-3m3 3-3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>Move</b> by dragging a side</span></div>
+        <div class="direction"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M5 15 14 5m-4-2a7 7 0 0 1 7 7m0-4v4h-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="5" cy="15" r="2" stroke="currentColor" stroke-width="1.6"/></svg><span><b>Turn</b> by dragging an end</span></div>
+        <div class="direction"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M2 10h5m6 0h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="10" cy="10" r="3" stroke="currentColor" stroke-width="1.6"/></svg><span><b>Join</b> by bringing ends close</span></div>
+        <div class="direction"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M2 10h4m8 0h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="7" cy="10" r="2" stroke="currentColor" stroke-width="1.6"/><circle cx="13" cy="10" r="2" stroke="currentColor" stroke-width="1.6"/></svg><span><b>Unjoin</b> an end with a double-click or double-tap</span></div>
+      </div>
+      <div class="board-wrap">
+        <div class="board-top"><span class="board-title">YOUR BUILDING SPACE</span><span class="corner-count" id="corner-count">0 of 3 corners joined</span></div>
+        <svg id="board" tabindex="0" role="group" aria-label="Triangle building area" aria-describedby="directions keyboard-help readout"></svg>
+        <div class="board-hint" id="board-hint">Bring two open ends close, then let go.</div>
+      </div>
+      <div class="feedback" id="feedback" data-state="possible">
+        <div class="feedback-icon" aria-hidden="true" id="feedback-icon"></div>
+        <div class="feedback-copy"><h2 id="feedback-title"></h2><p id="feedback-text"></p></div>
+        <div class="comparison"><span class="math" id="math"></span><span class="math-caption">shorter + shorter &nbsp; vs. &nbsp; longest</span></div>
+      </div>
+      <footer class="bottom">
+        <p id="length-note">Changing a length starts a new build.</p>
+        <details><summary>Keyboard controls</summary><p id="keyboard-help">Focus the building space. Press <kbd>1</kbd>, <kbd>2</kbd>, or <kbd>3</kbd> to choose a side. Use the <kbd>arrow keys</kbd> to move its connected sides. Press <kbd>A</kbd> / <kbd>D</kbd> to turn around its first end; hold <kbd>Shift</kbd> to turn around its other end. Press <kbd>Enter</kbd> to join nearby open ends. Press <kbd>U</kbd> to unjoin its first end; hold <kbd>Shift</kbd> to unjoin its other end.</p></details>
+      </footer>
+      <p class="sr-only" id="readout"></p>
+      <div class="sr-only" id="announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+      <noscript><p style="padding:20px">Turn on JavaScript to move and connect the sides.</p></noscript>
+    </section>
+  </main>
+  <script>
+  (() => {
+    'use strict';
+
+    // Coordinates are CSS pixels. Every side has a fixed length in units.
+    // A shared vertex is ONE node, so joined endpoints can never drift apart.
+    const COLORS = ['#315fc5', '#147768', '#b34c28'];
+    const TINTS = ['#eef2ff', '#e8f5ef', '#fff0e8'];
+    const SIDE_NAMES = ['1', '2', '3'];
+    const SNAP = 32;
+    const MARGIN = 28;
+    const board = document.getElementById('board');
+    const hint = document.getElementById('board-hint');
+    const count = document.getElementById('corner-count');
+    const feedback = document.getElementById('feedback');
+    const readout = document.getElementById('readout');
+    const lengths = [4, 5, 6];
+    let selected = 0, nodes = {}, edges = [], nextNode = 0, lastTap = null;
+    let width = 0, height = 0, scale = 1, drag = null, keyboardMode = false;
+
+    const distance = (p, q) => Math.hypot(p.x - q.x, p.y - q.y);
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const incident = id => edges.filter(e => e.ends.includes(id));
+    const degree = id => incident(id).length;
+    const otherEnd = (e, id) => e.ends[0] === id ? e.ends[1] : e.ends[0];
+    const closed = () => Object.keys(nodes).length === 3 && Object.keys(nodes).every(id => degree(id) === 2);
+    const inequality = lengths => {
+      const [a, b, c] = [...lengths].sort((x, y) => x - y);
+      return { a, b, c, possible:a + b > c, equal:a + b === c };
+    };
+    const canBuild = () => inequality(edges.map(e => e.length)).possible;
+
+    function component(start, blocked = null) {
+      const seen = new Set(), pending = [start];
+      while (pending.length) {
+        const id = pending.pop();
+        if (id === blocked || seen.has(id)) continue;
+        seen.add(id);
+        incident(id).forEach(e => pending.push(otherEnd(e, id)));
+      }
+      return seen;
+    }
+
+    function announce(message) { document.getElementById('announcement').textContent = message; }
+    function inside(p) { return p.x >= MARGIN && p.x <= width - MARGIN && p.y >= 56 && p.y <= height - 46; }
+
+    function reset(announceReset = true) {
+      cancelDrag();
+      selected = 0;
+      lastTap = null;
+      nextNode = 0;
+      scale = Math.min(43, width * 0.64 / Math.max(...lengths), height * 0.49 / Math.max(...lengths));
+      nodes = {};
+      const starts = [[0.27, 0.29, -0.18], [0.72, 0.40, 0.74], [0.40, 0.75, -0.06]];
+      edges = lengths.map((length, i) => {
+        const [cx, cy, angle] = starts[i];
+        const dx = Math.cos(angle) * length * scale / 2;
+        const dy = Math.sin(angle) * length * scale / 2;
+        nodes[i + 'p'] = {x:width * cx - dx, y:height * cy - dy};
+        nodes[i + 'q'] = {x:width * cx + dx, y:height * cy + dy};
+        return {id:i, length, ends:[i + 'p', i + 'q']};
+      });
+      edges.forEach(e => fit(component(e.ends[0])));
+      render();
+      if (announceReset) announce('Sides reset. ' + document.getElementById('feedback-title').textContent);
+    }
+
+    function fit(ids) {
+      const points = [...ids].map(id => nodes[id]);
+      const minX = Math.min(...points.map(p => p.x)), maxX = Math.max(...points.map(p => p.x));
+      const minY = Math.min(...points.map(p => p.y)), maxY = Math.max(...points.map(p => p.y));
+      const dx = minX < MARGIN ? MARGIN - minX : maxX > width - MARGIN ? width - MARGIN - maxX : 0;
+      const dy = minY < 56 ? 56 - minY : maxY > height - 46 ? height - 46 - maxY : 0;
+      ids.forEach(id => { nodes[id].x += dx; nodes[id].y += dy; });
+    }
+
+    function translate(ids, dx, dy, source = nodes) {
+      const points = [...ids].map(id => source[id]);
+      dx = clamp(dx, MARGIN - Math.min(...points.map(p => p.x)), width - MARGIN - Math.max(...points.map(p => p.x)));
+      dy = clamp(dy, 56 - Math.min(...points.map(p => p.y)), height - 46 - Math.max(...points.map(p => p.y)));
+      ids.forEach(id => { nodes[id] = {x:source[id].x + dx, y:source[id].y + dy}; });
+    }
+
+    function rotate(ids, anchor, angle) {
+      // Small steps stop at the board boundary without moving the fixed pivot.
+      const steps = Math.max(1, Math.ceil(Math.abs(angle) / 0.04));
+      const step = angle / steps, cos = Math.cos(step), sin = Math.sin(step);
+      const center = nodes[anchor];
+      for (let i = 0; i < steps; i++) {
+        const next = {};
+        ids.forEach(id => {
+          const x = nodes[id].x - center.x, y = nodes[id].y - center.y;
+          next[id] = {x:center.x + x * cos - y * sin, y:center.y + x * sin + y * cos};
+        });
+        if (!Object.values(next).every(inside)) break;
+        Object.assign(nodes, next);
+      }
+    }
+
+    function intersections(p, q, r, s) {
+      const d = distance(p, q);
+      if (d <= 0 || d >= r + s || d <= Math.abs(r - s)) return [];
+      const x = (r * r - s * s + d * d) / (2 * d);
+      const h2 = r * r - x * x;
+      if (h2 <= 0) return [];
+      const h = Math.sqrt(h2), ux = (q.x - p.x) / d, uy = (q.y - p.y) / d;
+      const base = {x:p.x + x * ux, y:p.y + x * uy};
+      return [{x:base.x - h * uy, y:base.y + h * ux}, {x:base.x + h * uy, y:base.y - h * ux}];
+    }
+
+    function snapPlan(moving) {
+      let best = null;
+      for (const source of moving) {
+        if (!nodes[source] || degree(source) !== 1) continue;
+        const sourceEdge = incident(source)[0];
+        const connected = component(source);
+        for (const target of Object.keys(nodes)) {
+          if (target === source || degree(target) !== 1 || incident(target)[0] === sourceEdge) continue;
+          const d = distance(nodes[source], nodes[target]);
+          if (d > SNAP || (best && d >= best.distance)) continue;
+          if (!connected.has(target)) {
+            if (moving.has(target)) continue;
+            const dx = nodes[target].x - nodes[source].x, dy = nodes[target].y - nodes[source].y;
+            if (![...connected].every(id => inside({x:nodes[id].x + dx, y:nodes[id].y + dy}))) continue;
+            best = {type:'join', source, target, distance:d, connected, dx, dy};
+          } else {
+            // Only the two free ends of a three-side chain may close a triangle.
+            // Solve both terminal sides exactly; never stretch an edge to snap.
+            if (!canBuild() || connected.size !== 4) continue;
+            const targetEdge = incident(target)[0];
+            const p = nodes[otherEnd(sourceEdge, source)], q = nodes[otherEnd(targetEdge, target)];
+            const candidates = intersections(p, q, sourceEdge.length * scale, targetEdge.length * scale)
+              .filter(point => inside(point) && distance(point, nodes[source]) <= SNAP * 1.6 && distance(point, nodes[target]) <= SNAP * 1.6)
+              .sort((a, b) => distance(a, nodes[source]) + distance(a, nodes[target]) - distance(b, nodes[source]) - distance(b, nodes[target]));
+            if (candidates.length) best = {type:'close', source, target, distance:d, point:candidates[0]};
+          }
+        }
+      }
+      return best;
+    }
+
+    function trySnap(moving) {
+      const plan = snapPlan(moving);
+      if (!plan) return false;
+      if (plan.type === 'join') {
+        plan.connected.forEach(id => { nodes[id].x += plan.dx; nodes[id].y += plan.dy; });
+      } else {
+        // Both arms meet at a circle intersection, with their pivots unchanged.
+        nodes[plan.source] = {...plan.point};
+        nodes[plan.target] = {...plan.point};
+      }
+      edges.forEach(e => { e.ends = e.ends.map(id => id === plan.source ? plan.target : id); });
+      delete nodes[plan.source];
+      announce(closed() ? 'Triangle built! All three corners are joined.' : 'Ends joined. ' + Object.keys(nodes).filter(id => degree(id) === 2).length + ' of 3 corners joined.');
+      return true;
+    }
+
+    function unjoin(id) {
+      if (!nodes[id] || degree(id) !== 2) return null;
+      const attached = incident(id);
+      const edge = attached.find(e => e.id === selected) || attached[0];
+      selected = edge.id;
+      const loose = 'split' + nextNode++;
+      nodes[loose] = {...nodes[id]};
+      edge.ends = edge.ends.map(end => end === id ? loose : end);
+      // Open a visible gap by turning just the detached end around its pivot.
+      // Other joined corners and every side length remain unchanged.
+      const anchor = otherEnd(edge, loose), origin = {...nodes[loose]};
+      const angle = Math.min(Math.PI / 3, 2 * Math.asin(Math.min(1, (SNAP + 14) / (2 * edge.length * scale))));
+      const moving = new Set([loose]);
+      rotate(moving, anchor, angle);
+      const first = {...nodes[loose]};
+      nodes[loose] = {...origin};
+      rotate(moving, anchor, -angle);
+      if (distance(first, origin) > distance(nodes[loose], origin)) nodes[loose] = first;
+      lastTap = null;
+      announce('Corner separated. Both ends are now free; the other corners stay joined.');
+      return loose;
+    }
+
+    function updateFeedback() {
+      const result = inequality(edges.map(e => e.length));
+      const complete = closed();
+      feedback.dataset.state = complete ? 'complete' : result.possible ? 'possible' : 'impossible';
+      document.getElementById('feedback-title').textContent = complete ? 'You built a triangle!' : result.possible ? 'These sides can form a triangle.' : 'These sides can’t form a triangle.';
+      document.getElementById('feedback-text').textContent = complete
+        ? 'All three corners are joined, and every side kept its length. Move your triangle, or double-click or double-tap a corner to unjoin it.'
+        : result.possible
+          ? 'The two shorter sides together are longer than the longest side. Keep going—connect all three corners!'
+          : result.equal
+            ? 'The two shorter sides add up exactly to the longest side. They can lie flat, but can’t close a triangle. Try moving them to see why.'
+            : 'The two shorter sides together are shorter than the longest side. They can’t reach to close a triangle. Try moving them to see why.';
+      document.getElementById('math').textContent = `${result.a} + ${result.b} ${result.possible ? '>' : result.equal ? '=' : '<'} ${result.c}`;
+      document.getElementById('feedback-icon').innerHTML = result.possible
+        ? '<svg viewBox="0 0 20 20" fill="none"><path d="m5 10 3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        : '<svg viewBox="0 0 20 20" fill="none"><path d="M10 5v6m0 3v.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+      const joined = Object.keys(nodes).filter(id => degree(id) === 2).length;
+      count.textContent = `${joined} of 3 corners joined`;
+      const connections = Object.keys(nodes).filter(id => degree(id) === 2).map(id => incident(id).map(e => SIDE_NAMES[e.id]).join(' and '));
+      readout.textContent = edges.map(e => `Side ${SIDE_NAMES[e.id]}: ${e.length}.`).join(' ') + ` ${joined} of 3 corners joined.` + (connections.length ? ' Joined sides: ' + connections.join('; ') + '.' : '') + ` Selected side: ${SIDE_NAMES[selected]}. ` + document.getElementById('feedback-title').textContent;
+    }
+
+    function render() {
+      const complete = closed(), plan = drag && drag.moved ? snapPlan(drag.moving) : null;
+      let markup = '';
+      if (complete) {
+        markup += `<polygon points="${Object.values(nodes).map(p => `${p.x},${p.y}`).join(' ')}" fill="#d7ece0" fill-opacity="0.6" pointer-events="none"/>`;
+      }
+      edges.forEach(e => {
+        const p = nodes[e.ends[0]], q = nodes[e.ends[1]], color = COLORS[e.id];
+        const active = selected === e.id && (drag || keyboardMode);
+        markup += `<g data-edge="${e.id}"><line class="side-hit" data-edge="${e.id}" x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="transparent" stroke-width="44" stroke-linecap="round"/>`;
+        if (active) markup += `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="${color}" stroke-opacity="0.13" stroke-width="18" stroke-linecap="round" pointer-events="none"/>`;
+        markup += `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="${color}" stroke-width="6" stroke-linecap="round" pointer-events="none"/></g>`;
+      });
+      // Horizontal labels remain readable at every rotation and screen size.
+      // Choose a side of the segment away from the triangle's interior.
+      edges.forEach(e => {
+        const p = nodes[e.ends[0]], q = nodes[e.ends[1]], d = distance(p, q);
+        const mid = {x:(p.x + q.x) / 2, y:(p.y + q.y) / 2};
+        let nx = -(q.y - p.y) / d, ny = (q.x - p.x) / d;
+        if (ny > 0) { nx = -nx; ny = -ny; }
+        if (complete) {
+          const centroid = Object.values(nodes).reduce((s, point) => ({x:s.x + point.x / 3, y:s.y + point.y / 3}), {x:0, y:0});
+          if ((centroid.x - mid.x) * nx + (centroid.y - mid.y) * ny > 0) { nx = -nx; ny = -ny; }
+        }
+        const x = clamp(mid.x + nx * 29, 25, width - 25), y = clamp(mid.y + ny * 29, 68, height - 51);
+        markup += `<g class="side-label" data-edge="${e.id}" transform="translate(${x},${y})"><rect x="-22" y="-22" width="44" height="44" fill="transparent"/><rect x="-18" y="-15" width="36" height="30" rx="8" fill="${TINTS[e.id]}" stroke="${COLORS[e.id]}" stroke-opacity="0.2"/><text text-anchor="middle" dominant-baseline="central" fill="${COLORS[e.id]}" font-size="16" font-weight="800">${e.length}</text></g>`;
+      });
+      if (plan) {
+        const p = plan.type === 'close' ? plan.point : nodes[plan.target];
+        markup += `<circle cx="${p.x}" cy="${p.y}" r="22" fill="#20705b" fill-opacity="0.12" stroke="#20705b" stroke-width="2" stroke-dasharray="3 4" pointer-events="none"/>`;
+      }
+      Object.keys(nodes).forEach(id => {
+        const p = nodes[id], joined = degree(id) === 2;
+        const color = joined ? '#233c43' : COLORS[incident(id)[0].id];
+        const active = drag && drag.grabbed === id;
+        markup += `<g class="end-target" data-node="${id}"><circle class="end-hit" data-node="${id}" cx="${p.x}" cy="${p.y}" r="24" fill="transparent"/><circle class="end-halo" cx="${p.x}" cy="${p.y}" r="20" fill="${color}" opacity="${active ? '0.15' : '0'}" pointer-events="none"/><circle cx="${p.x}" cy="${p.y}" r="${joined ? 10 : 9}" fill="${joined ? color : '#fff'}" stroke="${color}" stroke-width="3" pointer-events="none"/><circle cx="${p.x}" cy="${p.y}" r="${joined ? 3 : 2.5}" fill="${joined ? '#fff' : color}" pointer-events="none"/></g>`;
+      });
+      board.innerHTML = markup;
+      if (complete) hint.textContent = 'Triangle built! Double-click or double-tap a corner to unjoin it.';
+      else if (plan) hint.textContent = plan.type === 'close' ? 'Let go to complete your triangle.' : 'Let go to join these ends.';
+      else if (drag) hint.textContent = drag.kind === 'rotate' ? 'Turning around the other end. Joined sides follow.' : 'Moving this side and its connected sides.';
+      else if (keyboardMode) hint.textContent = `Side ${SIDE_NAMES[selected]} selected · arrows move · A / D turn · Enter joins · U unjoins`;
+      else hint.textContent = 'Bring two open ends close, then let go.';
+      updateFeedback();
+    }
+
+    function pointFromEvent(event) {
+      const rect = board.getBoundingClientRect();
+      return {x:(event.clientX - rect.left) * width / rect.width, y:(event.clientY - rect.top) * height / rect.height};
+    }
+
+    function cancelDrag() {
+      if (drag && board.hasPointerCapture(drag.pointer)) board.releasePointerCapture(drag.pointer);
+      drag = null;
+      board.classList.remove('is-dragging');
+    }
+
+    board.addEventListener('pointerdown', event => {
+      if (drag || !event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
+      const nodeTarget = event.target.closest('[data-node]');
+      const edgeTarget = event.target.closest('[data-edge]');
+      if (!nodeTarget && !edgeTarget) return;
+      event.preventDefault();
+      keyboardMode = false;
+      const start = pointFromEvent(event);
+      if (nodeTarget) {
+        let grabbed = nodeTarget.dataset.node;
+        // Track the endpoint, not its SVG element: rendering replaces elements
+        // during dragging. This also provides double-tap support on iPad.
+        if (lastTap && lastTap.node === grabbed && lastTap.type === event.pointerType && Date.now() - lastTap.time <= 420 && distance(start, lastTap.point) <= 20) {
+          grabbed = unjoin(grabbed) || grabbed;
+        }
+        lastTap = null;
+        const incidentEdges = incident(grabbed);
+        const edge = incidentEdges.find(e => e.id === selected) || incidentEdges[0];
+        selected = edge.id;
+        const anchor = otherEnd(edge, grabbed);
+        const center = nodes[anchor];
+        drag = {kind:'rotate', grabbed, start, moved:false, downAt:Date.now(), anchor, moving:component(grabbed, anchor), angle:Math.atan2(start.y - center.y, start.x - center.x), pointer:event.pointerId};
+      } else {
+        lastTap = null;
+        selected = Number(edgeTarget.dataset.edge);
+        drag = {kind:'move', start, moved:false, moving:component(edges[selected].ends[0]), snapshot:Object.fromEntries(Object.entries(nodes).map(([id, p]) => [id, {...p}])), pointer:event.pointerId};
+      }
+      board.focus({preventScroll:true});
+      board.setPointerCapture(event.pointerId);
+      board.classList.add('is-dragging');
+      render();
+    });
+
+    board.addEventListener('pointermove', event => {
+      if (!drag || event.pointerId !== drag.pointer) return;
+      event.preventDefault();
+      const point = pointFromEvent(event);
+      if (!drag.moved && distance(point, drag.start) <= (event.pointerType === 'touch' ? 6 : 3)) return;
+      drag.moved = true;
+      lastTap = null;
+      if (drag.kind === 'move') translate(drag.moving, point.x - drag.start.x, point.y - drag.start.y, drag.snapshot);
+      else {
+        const center = nodes[drag.anchor];
+        if (distance(point, center) < 12) return;
+        const angle = Math.atan2(point.y - center.y, point.x - center.x);
+        const delta = Math.atan2(Math.sin(angle - drag.angle), Math.cos(angle - drag.angle));
+        rotate(drag.moving, drag.anchor, delta);
+        drag.angle = angle;
+      }
+      render();
+    });
+
+    function finishDrag(event) {
+      if (!drag || event.pointerId !== drag.pointer) return;
+      const moving = drag.moving;
+      const shouldSnap = event.type === 'pointerup' && drag.moved;
+      if (event.type === 'pointerup' && !drag.moved && drag.grabbed && degree(drag.grabbed) === 2 && Date.now() - drag.downAt <= 420) {
+        lastTap = {node:drag.grabbed, point:pointFromEvent(event), time:Date.now(), type:event.pointerType};
+      } else lastTap = null;
+      cancelDrag();
+      if (shouldSnap) trySnap(moving);
+      render();
+    }
+    board.addEventListener('pointerup', finishDrag);
+    board.addEventListener('pointercancel', finishDrag);
+    board.addEventListener('dblclick', event => {
+      event.preventDefault();
+      // Honor slower system double-click settings as well. When the pointer
+      // gesture already split this corner, its original node is now free.
+      const target = event.target.closest('[data-node]');
+      const point = pointFromEvent(event);
+      const id = target && nodes[target.dataset.node] ? target.dataset.node : Object.keys(nodes)
+        .filter(node => distance(nodes[node], point) <= 24)
+        .sort((a, b) => distance(nodes[a], point) - distance(nodes[b], point))[0];
+      if (id && unjoin(id)) { cancelDrag(); render(); }
+    });
+    board.addEventListener('lostpointercapture', event => {
+      if (drag && drag.pointer === event.pointerId) { drag = null; board.classList.remove('is-dragging'); render(); }
+    });
+    window.addEventListener('blur', () => { if (drag) { cancelDrag(); render(); } });
+
+    board.addEventListener('keydown', event => {
+      if (event.ctrlKey || event.metaKey || event.altKey || drag) return;
+      const key = event.key.toLowerCase();
+      if (!['1','2','3','arrowleft','arrowright','arrowup','arrowdown','a','d','enter','u'].includes(key)) return;
+      event.preventDefault();
+      lastTap = null;
+      keyboardMode = true;
+      if (['1','2','3'].includes(key)) {
+        selected = Number(key) - 1;
+        announce(`Side ${SIDE_NAMES[selected]} selected, length ${edges[selected].length}.`);
+      } else {
+        const edge = edges[selected];
+        const moving = component(edge.ends[0]);
+        const amount = event.shiftKey ? 16 : 6;
+        if (key === 'arrowleft') translate(moving, -amount, 0);
+        if (key === 'arrowright') translate(moving, amount, 0);
+        if (key === 'arrowup') translate(moving, 0, -amount);
+        if (key === 'arrowdown') translate(moving, 0, amount);
+        if (key === 'a' || key === 'd') {
+          const anchor = edge.ends[event.shiftKey ? 1 : 0], grabbed = otherEnd(edge, anchor);
+          rotate(component(grabbed, anchor), anchor, (key === 'a' ? -1 : 1) * Math.PI / 60);
+        }
+        if (key === 'u' && !unjoin(edge.ends[event.shiftKey ? 1 : 0])) announce('That end is already free. Hold Shift and press U to try the other end.');
+        if (key === 'enter' && !trySnap(moving)) announce(canBuild() ? 'No open ends close enough to join. Move or turn a side, then try again.' : 'These lengths cannot close a triangle. You can still join separate sides.');
+      }
+      render();
+    });
+    board.addEventListener('blur', () => { keyboardMode = false; render(); });
+    document.getElementById('reset').addEventListener('click', () => reset());
+    lengths.forEach((length, i) => {
+      const control = document.getElementById('length-' + i);
+      control.innerHTML = Array.from({length:12}, (_, n) => `<option value="${n + 1}">${n + 1}</option>`).join('');
+      control.value = String(length);
+      control.addEventListener('change', () => {
+        const value = Number(control.value);
+        if (!Number.isInteger(value) || value < 1 || value > 12) { control.value = String(lengths[i]); return; }
+        if (value === lengths[i]) return;
+        lengths[i] = value;
+        reset(false);
+        announce('New side lengths: ' + lengths.join(', ') + '. ' + document.getElementById('feedback-title').textContent);
+      });
+    });
+
+    // Preserve the assembly on resize/orientation changes using one uniform scale.
+    // CSS-pixel coordinates keep all touch targets at least 44 pixels wide.
+    function resize() {
+      const rect = board.getBoundingClientRect();
+      const newWidth = rect.width, newHeight = rect.height;
+      if (!newWidth || !newHeight || (Math.abs(newWidth - width) < 0.5 && Math.abs(newHeight - height) < 0.5)) return;
+      cancelDrag();
+      if (!width) {
+        width = newWidth; height = newHeight;
+        board.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        reset(false);
+        return;
+      }
+      const nextScale = Math.min(43, newWidth * 0.64 / Math.max(...lengths), newHeight * 0.49 / Math.max(...lengths));
+      let ratio = nextScale / scale;
+      const minX = Math.min(...Object.values(nodes).map(p => p.x)), maxX = Math.max(...Object.values(nodes).map(p => p.x));
+      const minY = Math.min(...Object.values(nodes).map(p => p.y)), maxY = Math.max(...Object.values(nodes).map(p => p.y));
+      // A widely spread chain may need to fit a narrower portrait viewport.
+      ratio = Math.min(ratio, (newWidth - MARGIN * 2) / Math.max(1, maxX - minX), (newHeight - 102) / Math.max(1, maxY - minY));
+      Object.values(nodes).forEach(p => { p.x = (p.x - width / 2) * ratio + newWidth / 2; p.y = (p.y - height / 2) * ratio + newHeight / 2; });
+      scale *= ratio;
+      width = newWidth; height = newHeight;
+      board.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      fit(new Set(Object.keys(nodes)));
+      render();
+    }
+    new ResizeObserver(resize).observe(board);
+    resize();
+  })();
+  </script>
+</body>
+</html>
